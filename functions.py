@@ -6,13 +6,13 @@ from lmfit import Parameters, Model
 import matplotlib.pyplot as plt
 
 
-def lorentzian_fitting(df, Q_loaded_init, res_init):
+def lorentzian_fitting(df, Q_l_init, res_init):
     magnitude = 10 ** (df["re:S21"].values / 20)
     S21res = magnitude.max()
 
     params = Parameters()
     params.add("a", value=S21res, min=S21res - 0.1, max=S21res + 0.1)
-    params.add("b", value=Q_loaded_init, min=0, max=Q_loaded_init * (1.01))
+    params.add("b", value=Q_l_init, min=0, max=Q_l_init * (1.01))
     params.add("c", value=res_init, min=res_init - 1e8, max=res_init + 1e8)
     params.add("d", value=0, min=-10, max=10)
     params.add("e", value=0, min=-10, max=10)
@@ -34,10 +34,10 @@ def lorentzian_fitting(df, Q_loaded_init, res_init):
     plt.show()
 
     # CONSIDERS IT BOTH UNLOADED AND LOADED IN MATLAB file
-    Q_loaded_fit = result_fitting.params["b"].value
-    resonance_fit = result_fitting.params["c"].value
+    Q_l_fit = result_fitting.params["b"].value
+    res_fit = result_fitting.params["c"].value
 
-    return [Q_loaded_fit, resonance_fit]
+    return [Q_l_fit, res_fit]
 
 
 def DR_calculation(df):
@@ -55,8 +55,8 @@ def DR_calculation(df):
         df["freq[Hz]"].iloc[idx_reS21_max + 1 :],
     )
 
-    resonance = df.loc[idx_reS21_max, "freq[Hz]"]
-    Qloaded = resonance / (f2 - f1)
+    res = df.loc[idx_reS21_max, "freq[Hz]"]
+    Q_l = res / (f2 - f1)
 
     df["magnitudeS11"] = df["re:S11"] - (
         (df["re:S11"].iloc[0] + df["re:S11"].iloc[-1]) * 0.5
@@ -78,9 +78,9 @@ def DR_calculation(df):
     beta1 = (1 - S11res) / (S11res + S22res)
     beta2 = (1 - S22res) / (S11res + S22res)
 
-    Qunloaded = Qloaded * (1 + beta1 + beta2)
+    Q_u = Q_l * (1 + beta1 + beta2)
 
-    return [df, Qloaded, Qunloaded, resonance, beta1, beta2]
+    return [df, Q_l, Q_u, res, beta1, beta2]
 
 
 def get_run_profile(inputs_path, T, f_str):
@@ -103,7 +103,7 @@ def get_run_profile(inputs_path, T, f_str):
     return df
 
 
-def get_VNA_scan(filename):
+def get_f_sweep(filename):
     with open(filename, "r") as f:
         # Skip header lines and read the last line as column names:
         header_lines = []
