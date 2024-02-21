@@ -13,6 +13,11 @@ f1 = interp1(magnitude1(1:indmax1), frequency1(1:indmax1), -3.01);
 f2 = interp1(magnitude1(indmax1:end), frequency1(indmax1:end), -3.01);
 BW1 = f2 - f1;
 
+format long
+
+disp(f1)
+disp(f2)
+
 Qloaded = resonance1/BW1;
 
 magnitudeS11 = data(:,2);

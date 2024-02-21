@@ -1,6 +1,6 @@
 function [q_unloaded freq_reso_fit] = lorentzian_fit_T(temp,frequency,magnitude,q_loaded,reso_freq,savepath,varargin)
 
-show_plot     = false;
+show_plot     = true;
 save_plot     = false;
   
   k=1;
@@ -20,8 +20,6 @@ magnitude = power(10,magnitude./20); % in linear representation
 % 
 % magnitude_S22 = power(10,magnitude_S22./20); % in linear representation
 
-
-
 fo = fitoptions('Method','NonlinearLeastSquares',...
                'Lower',[(max(magnitude(:,1)))-0.1 0  reso_freq(1,1)-100000000 -10 -10],...
                'Upper',[(max(magnitude(:,1)))+0.1 q_loaded(1,1)+(q_loaded(1,1)*0.01)  reso_freq(1,1)+100000000 10 10],...
@@ -29,6 +27,7 @@ fo = fitoptions('Method','NonlinearLeastSquares',...
          
 ft = fittype(@(a,b,c,d,e,x) abs(a./(1+2*1i*b.*((x-c)./c))+d+1i*e),'independent',{'x'},'coefficients',{'a','b','c','d','e'},'options',fo); % determining function to fit
 [fit_1,gof_1] = fit(frequency(:,1),magnitude(:,1),ft); %perform fit
+
 
 % %% Prepare the second fit function
 % 
