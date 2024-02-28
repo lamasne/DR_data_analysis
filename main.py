@@ -1,41 +1,50 @@
 from functions import *
 import pandas as pd
 import numpy as np
-import glob
-import os
 import matplotlib.pyplot as plt
 
 ### Left to do:
-# check code outputs vs old
-# Q_u calc
-# Mix DR calc with fitting
-# X_S correction
-# ploting
-# loop over T
+# R_S and X_S calculation
 
+
+# Specific params
+# sample_name = "FF_23_12_01"
+sample_name = "AMC_23_01_01" # old one
+T = 50
+
+# General params
 inputs_root_path = "inputs/"
 outputs_root_path = "outputs/"
-sample_name = "FF DR001"
-is_multimode = True
-
-# Run parameters (for now single values, in the future loop over all T, and f's)
-T = 50
-# f_str = "old"
-f_str = 'freq 2'
-inputs_path = inputs_root_path + str(T) + "K/" + f_str + "/"
+list_of_multi_modes = ['FF_23_12_01']
+is_multimode = True if sample_name in list_of_multi_modes else False
 
 # Get run profile from filenames
-df_B_sweep = get_B_sweep(inputs_path, T, f_str, is_multimode)
+inputs_path = get_inputs_path(inputs_root_path, sample_name, is_multimode)
+df_B_sweep = get_B_sweep(inputs_path, is_multimode)
+print(df_B_sweep)
 
-# Calculate quality factor, R_s and X_s
-for file in df_B_sweep["name"]:
-    df_sweep = get_f_sweep(inputs_path + file)
-    [df_sweep_ext, Q_l, Q_u, res, beta1, beta2] = DR_calculation(df_sweep, is_multimode)
-    [Q_l_fit, res_fit] = lorentzian_fitting(df_sweep_ext, Q_l, res, is_multimode)
-    print(f'Quality factor is: {Q_l_fit}, Resonance is: {res_fit}')
-    # Q_u missing
-    # X_S correction missing
-    break
+# Calculate quality factor and resonant freqs -- WHAT ABOUT R_s and X_s ? 
+nb_f_sweeps = len(df_B_sweep)
+Q_l_fit_array = np.zeros(nb_f_sweeps)
+res_fit_array = np.zeros(nb_f_sweeps)
+for i, df_idx in enumerate(df_B_sweep.index):
+    df_f_sweep = get_f_sweep(inputs_path + df_B_sweep.loc[df_idx, 'name'])
+    if is_multimode:
+        df_f_sweep = format_data(df_f_sweep)
+    [Q_l, Q_u, res, beta1, beta2] = DR_calculation(df_f_sweep)
+    [Q_l_fit_array[i], res_fit_array[i]] = lorentzian_fitting(df_f_sweep, Q_l, res)
+
+    # R_s and X_s calculation
+
+# Calculate unloaded quality factor
+Q_u_fit_array = np.zeros(nb_f_sweeps)
+for i, Q_l_fit in enumerate(Q_l_fit_array):
+    Q_u_fit_array[i] = get_Q_u(Q_l_fit, beta1, beta2)
+
 
 # Ploting
-# plt.plot(df_B_sweep['B'].values, df_B_sweep_ext['res_fit'])
+B_values = df_B_sweep['B'].values
+plt.plot(B_values, Q_l_fit_array, B_values, Q_u_fit_array)
+plt.xlabel('B field - Oe')
+plt.legend(['Q_l', 'Q_u'])
+plt.show()

@@ -13,8 +13,6 @@ sample_name = 'idc';
 
 [data_S2P conditions q_loaded_fit q_unloaded_fit reso_freq_fit Rs del_Rs del_Xs] = Zsf_calculator_lorentzian_RS_Guilherme(input_path,output_path,sample_name,1); % Change path of setup factors inside function (line 101) 
 
-
-
 %%
 close all
 Xs = Xs_temp_correction(conditions,reso_freq_fit,1,output_path);

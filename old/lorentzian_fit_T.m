@@ -1,6 +1,6 @@
 function [q_unloaded freq_reso_fit] = lorentzian_fit_T(temp,frequency,magnitude,q_loaded,reso_freq,savepath,varargin)
 
-show_plot     = true;
+show_plot     = false;
 save_plot     = false;
   
   k=1;
