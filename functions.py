@@ -5,9 +5,60 @@ import cmath
 import math
 import os
 import glob
-from lmfit import Parameters, Model, minimize
+from lmfit import Parameters, minimize
 import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
 
+
+def show_plots(df_B_sweep):
+    B_values = df_B_sweep['B'].values
+
+    plt.figure()  
+    plt.plot(B_values,  df_B_sweep['Q_l_fit'].values, B_values,  df_B_sweep['Q_u_fit'].values)
+    plt.xlabel('B field - Oe')
+    plt.legend(['Q_l', 'Q_u'])
+
+    plt.figure()  
+    plt.plot(B_values, df_B_sweep['R_S'].values)
+    plt.xlabel('B field - Oe')
+    plt.ylabel('R_S (m\Ohm)')
+
+    plt.figure()  
+    plt.plot(B_values, df_B_sweep['X_S'].values)
+    plt.xlabel('B field - Oe')
+    plt.ylabel('X_S (m\Ohm)')
+    
+    plt.show()
+
+def Z_S_calculation(DR_params_path, df_B_sweep, is_multimode, correction_factor = 0):   
+    # the correction factor accounts for the unknown permittivity of rutile
+    ref_index = df_B_sweep.index[0]
+
+    column_names = ['DR_T', 'eps_r', 'G_f', 'tau_l'] # if not is_multimode else ['f', 'DR_T', 'eps_r', 'G_f', 'tau_l']
+    df =  pd.read_csv(DR_params_path, delimiter='\t', header=0, names=column_names)
+    df = df.astype(np.float64)
+    df.sort_values(inplace=True, by="DR_T")
+
+    # eps_r_fun = interp1d(df['DR_T'], df['eps_r'], kind='cubic')
+    G_f_fun = interp1d(df['DR_T'], df['G_f'], kind='cubic')
+    tau_l_fun = interp1d(df['DR_T'], df['tau_l'], kind='cubic')
+    eps_r_fun = interp1d(df['DR_T'], df['eps_r'], kind='cubic')
+
+    # Reference for X_s computation
+    T_ref =  df_B_sweep.loc[ref_index, 'DR_T']
+    res_fit_ref = df_B_sweep.loc[ref_index, 'res_fit']
+    eps_r_ref = eps_r_fun(T_ref)
+
+    for i in df_B_sweep.index:
+        T = df_B_sweep.loc[i, 'DR_T']
+        Q_u = df_B_sweep.loc[i, 'Q_u_fit']
+        G_f = G_f_fun(T)
+        df_B_sweep.loc[i, 'R_S'] = (G_f/2) * ((1/Q_u) - tau_l_fun(T))
+    
+        res_fit = df_B_sweep.loc[i, 'res_fit']
+        df_B_sweep.loc[i, 'X_S'] = (-1) * G_f * (((res_fit - res_fit_ref) / res_fit_ref) + (correction_factor * (eps_r_fun(T) - eps_r_ref) / eps_r_ref))
+
+    return df_B_sweep
 
 def lorentzian_fitting(sweep_df, Q_l_init, res_init):
     S21_lin = 10 ** (sweep_df["db:S21"].values / 20)
@@ -47,7 +98,6 @@ def lorentzian_fitting(sweep_df, Q_l_init, res_init):
     
     # plt.show()
 
-    # CONSIDERS IT BOTH UNLOADED AND LOADED IN MATLAB file
     Q_l_fit = result_fitting.params["Q_l"].value
     res_fit = result_fitting.params["res"].value
 
@@ -87,8 +137,6 @@ def DR_calculation(df):
 
 
     S11_res_lin = 10 ** (df["magnitudeS11"].max() / 20)
-    # S21_res_lin = 10 ** (df["db:S21"].max() / 20)
-
     S22_res_lin = 10 ** (df.loc[idx_res_S21, "magnitudeS22"] / 20)
 
     beta1 = (1 - S11_res_lin) / (S11_res_lin + S22_res_lin)
@@ -183,9 +231,10 @@ def get_B_sweep(inputs_path, is_multimode):
 
     return df
 
-def get_inputs_path(inputs_root_path, sample_name, is_multimode):
+def get_inputs_path(inputs_root_path, sample_name, T, is_multimode):
     if is_multimode:
         f_str = 'multi-mode/freq_1/'
+        print('IMPORTANT: freq 1 was selected')
     else:
         f_str = 'single-mode/'
     return  inputs_root_path + sample_name + '/' + str(T) + "K/" + f_str
