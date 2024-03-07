@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 
 
-def show_plots(df_B_sweep):
+def make_plots(df_B_sweep, is_show_plots, is_save_plots, outputs_path):
     # To plot in tex
     # plt.rcParams['text.usetex'] = True
     B_values = df_B_sweep['B'].values
@@ -32,6 +32,8 @@ def show_plots(df_B_sweep):
              )
     plt.legend(['ramp-up', 'ramp-up'])
     plt.ylabel('$f_{res}$ (GHz)')
+    if is_save_plots:
+        plt.savefig(os.path.join(outputs_path, "f(B).png"))
 
     plt.figure()  
     plt.xlabel('B (T)')
@@ -42,6 +44,8 @@ def show_plots(df_B_sweep):
              )
     plt.legend(['$Q_l$ ramp-up', '$Q_u$ ramp-up', '$Q_u$ ramp-down', '$Q_u$ ramp-down'])
     plt.ylabel('Q')
+    if is_save_plots:
+        plt.savefig(os.path.join(outputs_path, "Q(B).png"))
 
     plt.figure()  
     plt.xlabel('B (T)')
@@ -50,6 +54,8 @@ def show_plots(df_B_sweep):
              )
     plt.legend(['ramp-up', 'ramp-down'])
     plt.ylabel(r'$R_S$ ($m\Omega$)')
+    if is_save_plots:
+        plt.savefig(os.path.join(outputs_path, "R_s(B).png"))
 
     plt.figure()  
     plt.xlabel('B (T)')
@@ -58,27 +64,30 @@ def show_plots(df_B_sweep):
              )
     plt.legend(['ramp-up', 'ramp-down'])
     plt.ylabel(r'$X_S$ ($m\Omega$)')
+    if is_save_plots:
+        plt.savefig(os.path.join(outputs_path, "X_s(B).png"))
+    
+    if is_show_plots:
+        plt.show()
 
-    plt.show()
 
-def run(inputs_root_path, DR_params_path, mode, T, is_multimode, is_show_S21, is_show_fitting):
+def run(inputs_path, outputs_path, DR_params_path, mode, T, is_multimode, is_show_fitting, is_save_fitting):
     # Get run profile from filenames
-    inputs_path = inputs_root_path + str(T) + "K/" + mode + '/'
     df_B_sweep = get_B_sweep(inputs_path, is_multimode)
 
     # Calculate quality factors and resonant freqs for each field, and add them to df
     nb_f_sweeps = len(df_B_sweep)
-    for loading_bar_var, i in enumerate(df_B_sweep.index):
+    for idx, i in enumerate(df_B_sweep.index):
         df_f_sweep = get_f_sweep(inputs_path + df_B_sweep.loc[i, 'name'])
         if is_multimode:
             df_f_sweep = format_data(df_f_sweep)
-        [Q_l, Q_u, res, beta1, beta2] = DR_calculation(df_f_sweep, is_show_S21)
-        [Q_l_fit, res_fit] = lorentzian_fitting(df_f_sweep, Q_l, res, is_show_fitting)
+        [Q_l, Q_u, res, beta1, beta2] = DR_calculation(df_f_sweep)
+        [Q_l_fit, res_fit] = lorentzian_fitting(df_f_sweep, Q_l, res, is_show_fitting, is_save_fitting, outputs_path, idx)
         Q_u_fit = get_Q_u(Q_l_fit, beta1, beta2)
         df_B_sweep.loc[i, ['Q_l_fit', 'res_fit', 'Q_u_fit']] = Q_l_fit, res_fit, Q_u_fit
 
         # Print the progress bar
-        progress = loading_bar_var / nb_f_sweeps * 100
+        progress = idx / nb_f_sweeps * 100
         print(f'\rProgress: [{"#" * int(progress / 5):20}] {progress:.1f}%', end='', flush=True)
 
     # Calculate surface impedance: R_S and X_S for each field, and add them to df
@@ -142,7 +151,7 @@ def Z_S_calculation(DR_params_path, df_B_sweep, mode, is_multimode, correction_f
 
     return df_B_sweep
 
-def lorentzian_fitting(sweep_df, Q_l_init, res_init, is_show_fitting):
+def lorentzian_fitting(sweep_df, Q_l_init, res_init, is_show_fitting, is_save_fitting, outputs_path, idx):
     S21_lin = 10 ** (sweep_df["db:S21"].values / 20)
     S21_res_lin = S21_lin.max()
     f = sweep_df["freq[Hz]"].values
@@ -169,18 +178,23 @@ def lorentzian_fitting(sweep_df, Q_l_init, res_init, is_show_fitting):
     result_fitting = minimize(residual, params, args=(f, S21_lin), method="leastsq")
     
     ## Plot data points and the fitted curve
-    if is_show_fitting:    
-        plt.figure()
-        plt.xlabel('f (Hz)')
-        # Logarithmic
-        plt.ylabel('S21 magnitude (log)')
-        plt.plot(f, (sweep_df["db:S21"]), "x-", linewidth=1.2, label="Data")
-        plt.plot(f, (20 * np.log10(abs(S21_formula(result_fitting.params, f)))), "m-", label="Fit")
-        # Linear
-        # plt.ylabel('S21 magnitude (lin)')
-        # plt.plot(f, abs(S21_lin), "x-", linewidth=1.2, label="Data")
-        # plt.plot(f, abs(S21_formula(result_fitting.params, f)), "m-", label="Fit")        
-        plt.legend(['S21 data', 'S21 fitting'])
+    plt.figure()
+    plt.xlabel('f (Hz)')
+    # Logarithmic
+    plt.ylabel('S21 magnitude (log)')
+    plt.plot(f, (sweep_df["db:S21"]), "x-", linewidth=1.2, label="Data")
+    plt.plot(f, (20 * np.log10(abs(S21_formula(result_fitting.params, f)))), "m-", label="Fit")
+    # Linear
+    # plt.ylabel('S21 magnitude (lin)')
+    # plt.plot(f, abs(S21_lin), "x-", linewidth=1.2, label="Data")
+    # plt.plot(f, abs(S21_formula(result_fitting.params, f)), "m-", label="Fit")        
+    plt.legend(['S21 data', 'S21 fitting'])
+
+    if is_save_fitting:
+        os.makedirs(outputs_path + 'S21/', exist_ok=True)
+        plt.savefig(os.path.join(outputs_path + 'S21/', f"S21_fitting_{idx:04d}.png"))
+
+    if is_show_fitting:
         plt.show()
 
     Q_l_fit = result_fitting.params["Q_l"].value
@@ -191,7 +205,7 @@ def lorentzian_fitting(sweep_df, Q_l_init, res_init, is_show_fitting):
 def get_Q_u(Q_l, beta1, beta2):
     return Q_l * (1 + beta1 + beta2)
 
-def DR_calculation(df, is_show_S21):
+def DR_calculation(df):
     idx_res_S21 = df["db:S21"].idxmax()
     res_S21 = df["db:S21"].max()
 
@@ -228,13 +242,6 @@ def DR_calculation(df, is_show_S21):
     beta2 = (1 - S22_res_lin) / (S11_res_lin + S22_res_lin)
 
     Q_u = get_Q_u(Q_l, beta1, beta2)
-
-    if is_show_S21:
-        plt.figure()
-        plt.plot(df["freq[Hz]"], df["db:S21"])
-        plt.xlabel('f (Hz)')
-        plt.ylabel('S21 magnitude')
-        plt.show()
 
     return [Q_l, Q_u, res, beta1, beta2]
 
