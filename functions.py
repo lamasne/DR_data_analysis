@@ -11,56 +11,138 @@ from scipy.interpolate import interp1d
 
 
 def show_plots(df_B_sweep):
+    # To plot in tex
+    # plt.rcParams['text.usetex'] = True
     B_values = df_B_sweep['B'].values
+    turning_point_idx = np.argmax(B_values)
+    ramp_up = np.arange(turning_point_idx+1)
+    B_values = df_B_sweep['B'].values
+    ramp_down = np.arange(turning_point_idx+1,len(B_values))
+
+    # Unit conversion
+    df_B_sweep['res_fit'] = df_B_sweep['res_fit']/1e9
+    B_values = B_values/1e4
+    df_B_sweep['R_S'] = 1e3*df_B_sweep['R_S']
+    df_B_sweep['X_S'] = 1e3*df_B_sweep['X_S']
 
     plt.figure()  
-    plt.plot(B_values,  df_B_sweep['Q_l_fit'].values, B_values,  df_B_sweep['Q_u_fit'].values)
-    plt.xlabel('B field - Oe')
-    plt.legend(['Q_l', 'Q_u'])
+    plt.xlabel('B (T)')
+    plt.plot(B_values[ramp_up],  df_B_sweep['res_fit'].values[ramp_up], 
+             B_values[ramp_down],  df_B_sweep['res_fit'].values[ramp_down],
+             )
+    plt.legend(['ramp-up', 'ramp-up'])
+    plt.ylabel('$f_{res}$ (GHz)')
 
     plt.figure()  
-    plt.plot(B_values, df_B_sweep['R_S'].values)
-    plt.xlabel('B field - Oe')
-    plt.ylabel('R_S (m\Ohm)')
+    plt.xlabel('B (T)')
+    plt.plot(B_values[ramp_up],  df_B_sweep['Q_l_fit'].values[ramp_up], 
+             B_values[ramp_up],  df_B_sweep['Q_u_fit'].values[ramp_up],
+             B_values[ramp_down],  df_B_sweep['Q_l_fit'].values[ramp_down],
+             B_values[ramp_down],  df_B_sweep['Q_u_fit'].values[ramp_down]
+             )
+    plt.legend(['$Q_l$ ramp-up', '$Q_u$ ramp-up', '$Q_u$ ramp-down', '$Q_u$ ramp-down'])
+    plt.ylabel('Q')
 
     plt.figure()  
-    plt.plot(B_values, df_B_sweep['X_S'].values)
-    plt.xlabel('B field - Oe')
-    plt.ylabel('X_S (m\Ohm)')
-    
+    plt.xlabel('B (T)')
+    plt.plot(B_values[ramp_up], df_B_sweep['R_S'].values[ramp_up],
+             B_values[ramp_down], df_B_sweep['R_S'].values[ramp_down]
+             )
+    plt.legend(['ramp-up', 'ramp-down'])
+    plt.ylabel(r'$R_S$ ($m\Omega$)')
+
+    plt.figure()  
+    plt.xlabel('B (T)')
+    plt.plot(B_values[ramp_up], df_B_sweep['X_S'].values[ramp_up],
+             B_values[ramp_down], df_B_sweep['X_S'].values[ramp_down]
+             )
+    plt.legend(['ramp-up', 'ramp-down'])
+    plt.ylabel(r'$X_S$ ($m\Omega$)')
+
     plt.show()
 
-def Z_S_calculation(DR_params_path, df_B_sweep, is_multimode, correction_factor = 0):   
+def run(inputs_root_path, DR_params_path, mode, T, is_multimode, is_show_S21, is_show_fitting):
+    # Get run profile from filenames
+    inputs_path = inputs_root_path + str(T) + "K/" + mode + '/'
+    df_B_sweep = get_B_sweep(inputs_path, is_multimode)
+
+    # Calculate quality factors and resonant freqs for each field, and add them to df
+    nb_f_sweeps = len(df_B_sweep)
+    for loading_bar_var, i in enumerate(df_B_sweep.index):
+        df_f_sweep = get_f_sweep(inputs_path + df_B_sweep.loc[i, 'name'])
+        if is_multimode:
+            df_f_sweep = format_data(df_f_sweep)
+        [Q_l, Q_u, res, beta1, beta2] = DR_calculation(df_f_sweep, is_show_S21)
+        [Q_l_fit, res_fit] = lorentzian_fitting(df_f_sweep, Q_l, res, is_show_fitting)
+        Q_u_fit = get_Q_u(Q_l_fit, beta1, beta2)
+        df_B_sweep.loc[i, ['Q_l_fit', 'res_fit', 'Q_u_fit']] = Q_l_fit, res_fit, Q_u_fit
+
+        # Print the progress bar
+        progress = loading_bar_var / nb_f_sweeps * 100
+        print(f'\rProgress: [{"#" * int(progress / 5):20}] {progress:.1f}%', end='', flush=True)
+
+    # Calculate surface impedance: R_S and X_S for each field, and add them to df
+    df_B_sweep = Z_S_calculation(DR_params_path, df_B_sweep, mode, is_multimode, 0.1)
+    return df_B_sweep
+
+def Z_S_calculation(DR_params_path, df_B_sweep, mode, is_multimode, correction_factor = 0):   
     # the correction factor accounts for the unknown permittivity of rutile
     ref_index = df_B_sweep.index[0]
 
-    column_names = ['DR_T', 'eps_r', 'G_f', 'tau_l'] # if not is_multimode else ['f', 'DR_T', 'eps_r', 'G_f', 'tau_l']
-    df =  pd.read_csv(DR_params_path, delimiter='\t', header=0, names=column_names)
-    df = df.astype(np.float64)
-    df.sort_values(inplace=True, by="DR_T")
+    # For single mode we have everything as a fun of T
+    if not is_multimode:
+        column_names = ['DR_T', 'eps_r', 'G_f', 'tau_l']
+        df =  pd.read_csv(DR_params_path + 'DR_params.txt', delimiter='\t', header=1, names=column_names)
+        df = df.astype(np.float64)
+        df.sort_values(inplace=True, by="DR_T")
 
-    # eps_r_fun = interp1d(df['DR_T'], df['eps_r'], kind='cubic')
-    G_f_fun = interp1d(df['DR_T'], df['G_f'], kind='cubic')
-    tau_l_fun = interp1d(df['DR_T'], df['tau_l'], kind='cubic')
-    eps_r_fun = interp1d(df['DR_T'], df['eps_r'], kind='cubic')
+        # eps_r_fun = interp1d(df['DR_T'], df['eps_r'], kind='cubic')
+        G_f_fun = interp1d(df['DR_T'], df['G_f'], kind='cubic')
+        tau_l_fun = interp1d(df['DR_T'], df['tau_l'], kind='cubic')
+        eps_r_fun = interp1d(df['DR_T'], df['eps_r'], kind='cubic')
 
-    # Reference for X_s computation
-    T_ref =  df_B_sweep.loc[ref_index, 'DR_T']
-    res_fit_ref = df_B_sweep.loc[ref_index, 'res_fit']
-    eps_r_ref = eps_r_fun(T_ref)
+        # Reference for X_s computation
+        T_ref =  df_B_sweep.loc[ref_index, 'DR_T']
+        res_fit_ref = df_B_sweep.loc[ref_index, 'res_fit']
+        eps_r_ref = eps_r_fun(T_ref)
 
-    for i in df_B_sweep.index:
-        T = df_B_sweep.loc[i, 'DR_T']
-        Q_u = df_B_sweep.loc[i, 'Q_u_fit']
-        G_f = G_f_fun(T)
-        df_B_sweep.loc[i, 'R_S'] = (G_f/2) * ((1/Q_u) - tau_l_fun(T))
-    
-        res_fit = df_B_sweep.loc[i, 'res_fit']
-        df_B_sweep.loc[i, 'X_S'] = (-1) * G_f * (((res_fit - res_fit_ref) / res_fit_ref) + (correction_factor * (eps_r_fun(T) - eps_r_ref) / eps_r_ref))
+        for i in df_B_sweep.index:
+            T = df_B_sweep.loc[i, 'DR_T']
+            Q_u = df_B_sweep.loc[i, 'Q_u_fit']
+            res_fit = df_B_sweep.loc[i, 'res_fit']
+            G_f = G_f_fun(T)
+            df_B_sweep.loc[i, 'R_S'] = (G_f/2) * ((1/Q_u) - tau_l_fun(T))        
+            df_B_sweep.loc[i, 'X_S'] = (-1) * G_f * (((res_fit - res_fit_ref) / res_fit_ref) + (correction_factor * (eps_r_fun(T) - eps_r_ref) / eps_r_ref))
+
+    # For multi-mode, G_f depends on mode and f(T), eps_r on T, tau_l on mode and T
+    else:
+        df_G_f = pd.read_csv(DR_params_path + 'Surface Geometrical Factor ' + mode +'.txt', delimiter='\t', header=0, names=['f', 'G_f'], dtype=np.float64)
+        G_f_fun = interp1d(df_G_f['f'], df_G_f['G_f'], kind='cubic')
+        df_tau_l = pd.read_csv(DR_params_path + 'Tangent Loss.txt', delimiter='\t', header=0, dtype=np.float64)
+        tau_l_fun = interp1d(df_tau_l['T'], df_tau_l[mode], kind='cubic')
+        df_eps_r = pd.read_csv(DR_params_path + 'Relative Permittivity.txt', delimiter='\t', header=0, names=['T', 'eps_r'], dtype=np.float64)
+        eps_r_fun = interp1d(df_eps_r['T'], df_eps_r['eps_r'], kind='cubic')
+        
+        # Reference for X_s computation
+        T_ref =  df_B_sweep.loc[ref_index, 'DR_T']
+        res_fit_ref = df_B_sweep.loc[ref_index, 'res_fit']
+        eps_r_ref = eps_r_fun(T_ref)
+
+        for i in df_B_sweep.index:
+            T = df_B_sweep.loc[i, 'DR_T']
+            Q_u = df_B_sweep.loc[i, 'Q_u_fit']
+            res_fit = df_B_sweep.loc[i, 'res_fit']
+            try:
+                G_f = G_f_fun(res_fit)
+            except ValueError as e:
+                print('resonance is not within known values of geometrical factor, G_f put to almost zero')
+                G_f = 0.1
+            df_B_sweep.loc[i, 'R_S'] = (G_f/2) * ((1/Q_u) - tau_l_fun(T))
+            df_B_sweep.loc[i, 'X_S'] = (-1) * G_f * (((res_fit - res_fit_ref) / res_fit_ref) + (correction_factor * (eps_r_fun(T) - eps_r_ref) / eps_r_ref))
 
     return df_B_sweep
 
-def lorentzian_fitting(sweep_df, Q_l_init, res_init):
+def lorentzian_fitting(sweep_df, Q_l_init, res_init, is_show_fitting):
     S21_lin = 10 ** (sweep_df["db:S21"].values / 20)
     S21_res_lin = S21_lin.max()
     f = sweep_df["freq[Hz]"].values
@@ -87,16 +169,19 @@ def lorentzian_fitting(sweep_df, Q_l_init, res_init):
     result_fitting = minimize(residual, params, args=(f, S21_lin), method="leastsq")
     
     ## Plot data points and the fitted curve
-    
-    # Linear
-    # plt.plot(f, abs(S21_lin), "x-", linewidth=1.2, label="Data")
-    # plt.plot(f, abs(S21_formula(result_fitting.params, f)), "m-", label="Fit")
-    
-    # Logarithmic
-    # plt.plot(f, (sweep_df["db:S21"]), "x-", linewidth=1.2, label="Data")
-    # plt.plot(f, (20 * np.log10(abs(S21_formula(result_fitting.params, f)))), "m-", label="Fit")
-    
-    # plt.show()
+    if is_show_fitting:    
+        plt.figure()
+        plt.xlabel('f (Hz)')
+        # Logarithmic
+        plt.ylabel('S21 magnitude (log)')
+        plt.plot(f, (sweep_df["db:S21"]), "x-", linewidth=1.2, label="Data")
+        plt.plot(f, (20 * np.log10(abs(S21_formula(result_fitting.params, f)))), "m-", label="Fit")
+        # Linear
+        # plt.ylabel('S21 magnitude (lin)')
+        # plt.plot(f, abs(S21_lin), "x-", linewidth=1.2, label="Data")
+        # plt.plot(f, abs(S21_formula(result_fitting.params, f)), "m-", label="Fit")        
+        plt.legend(['S21 data', 'S21 fitting'])
+        plt.show()
 
     Q_l_fit = result_fitting.params["Q_l"].value
     res_fit = result_fitting.params["res"].value
@@ -106,7 +191,7 @@ def lorentzian_fitting(sweep_df, Q_l_init, res_init):
 def get_Q_u(Q_l, beta1, beta2):
     return Q_l * (1 + beta1 + beta2)
 
-def DR_calculation(df):
+def DR_calculation(df, is_show_S21):
     idx_res_S21 = df["db:S21"].idxmax()
     res_S21 = df["db:S21"].max()
 
@@ -123,7 +208,7 @@ def DR_calculation(df):
     )
 
     if f1 == df["freq[Hz]"].iloc[0] or f2 ==df["freq[Hz]"].iloc[-1]:
-        print('IMPORTANT: Peak was not high enough to define resonnance freq')
+        raise ValueError(" Peak was not high enough to define resonnance freq")
 
     res = df.loc[idx_res_S21, "freq[Hz]"]
     Q_l = res / (f2 - f1)
@@ -143,6 +228,13 @@ def DR_calculation(df):
     beta2 = (1 - S22_res_lin) / (S11_res_lin + S22_res_lin)
 
     Q_u = get_Q_u(Q_l, beta1, beta2)
+
+    if is_show_S21:
+        plt.figure()
+        plt.plot(df["freq[Hz]"], df["db:S21"])
+        plt.xlabel('f (Hz)')
+        plt.ylabel('S21 magnitude')
+        plt.show()
 
     return [Q_l, Q_u, res, beta1, beta2]
 
@@ -230,11 +322,3 @@ def get_B_sweep(inputs_path, is_multimode):
     df.set_index("index", inplace=True)
 
     return df
-
-def get_inputs_path(inputs_root_path, sample_name, T, is_multimode):
-    if is_multimode:
-        f_str = 'multi-mode/freq_1/'
-        print('IMPORTANT: freq 1 was selected')
-    else:
-        f_str = 'single-mode/'
-    return  inputs_root_path + sample_name + '/' + str(T) + "K/" + f_str

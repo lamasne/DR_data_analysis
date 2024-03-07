@@ -1,0 +1,2 @@
+tau_l data measured at 6.5, 8, 10 GHz for TE011, TE012, TE013, respectively
+Geometrical factor given in Ohms
