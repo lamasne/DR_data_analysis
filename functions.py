@@ -254,11 +254,11 @@ def format_data(df):
     params = []
     for col in df.columns:
         res = re.search('^re:(.*)', col)
-        if res is None:
-            raise ValueError("The data is already in polar representation. Change the is_polar variable to True")
-        else:
+        if res is not None:
             params.append(res.group(1))
-    
+    if len(params) == 0:
+        raise ValueError("The data is already in polar representation. Change the is_polar variable to True")
+            
     nb_freq = len(df['freq[Hz]'])
     df_new = pd.DataFrame({'freq[Hz]': df['freq[Hz]']})
     for param in params: 

@@ -5,7 +5,6 @@ from functions import *
 sample_name = "AMC_23_01_01"
 DR_type = "single_mode_DR"
 is_polar = True
-
 data_format = {
     "index": [0,-1], 
     "mode": [0,-1],
