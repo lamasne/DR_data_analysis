@@ -73,7 +73,7 @@ def make_plots(df_B_sweep, is_show_plots, is_save_plots, outputs_path):
         plt.close('all')
 
 
-def run(inputs_path, outputs_path, DR_params_path, mode, T, data_format, is_multimode, is_show_fitting, is_save_fitting):
+def run(inputs_path, outputs_path, DR_params_path, mode, T, data_format, is_polar, is_multimode, is_show_fitting, is_save_fitting):
     # Get run profile from filenames
     df_B_sweep = get_B_sweep(inputs_path, data_format, is_multimode)
 
@@ -81,7 +81,7 @@ def run(inputs_path, outputs_path, DR_params_path, mode, T, data_format, is_mult
     nb_f_sweeps = len(df_B_sweep)
     for idx, i in enumerate(df_B_sweep.index):
         df_f_sweep = get_f_sweep(inputs_path + df_B_sweep.loc[i, 'name'])
-        if is_multimode:
+        if not is_polar:
             df_f_sweep = format_data(df_f_sweep)
         [Q_l, Q_u, res, beta1, beta2] = DR_calculation(df_f_sweep)
         [Q_l_fit, res_fit] = lorentzian_fitting(df_f_sweep, Q_l, res, is_show_fitting, is_save_fitting, outputs_path, idx)
@@ -254,7 +254,9 @@ def format_data(df):
     params = []
     for col in df.columns:
         res = re.search('^re:(.*)', col)
-        if res is not None:
+        if res is None:
+            raise ValueError("The data is already in polar representation. Change the is_polar variable to True")
+        else:
             params.append(res.group(1))
     
     nb_freq = len(df['freq[Hz]'])
