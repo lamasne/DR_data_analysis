@@ -73,9 +73,9 @@ def make_plots(df_B_sweep, is_show_plots, is_save_plots, outputs_path):
         plt.close('all')
 
 
-def run(inputs_path, outputs_path, DR_params_path, mode, T, is_multimode, is_show_fitting, is_save_fitting):
+def run(inputs_path, outputs_path, DR_params_path, mode, T, data_format, is_multimode, is_show_fitting, is_save_fitting):
     # Get run profile from filenames
-    df_B_sweep = get_B_sweep(inputs_path, is_multimode)
+    df_B_sweep = get_B_sweep(inputs_path, data_format, is_multimode)
 
     # Calculate quality factors and resonant freqs for each field, and add them to df
     nb_f_sweeps = len(df_B_sweep)
@@ -296,39 +296,56 @@ def get_f_sweep(filename):
     return df
 
 
-def get_B_sweep(inputs_path, is_multimode):
+def get_B_sweep(inputs_path, data_format, is_multimode):
     # Get a list of all files VNA files
     data_files = glob.glob(inputs_path + "*.s2p")
 
     filenames = [os.path.basename(file) for file in data_files]
 
-    # # Detect if old or new format
-    # if len(filenames[1].split("_")) == 4:
-    #     is_old_format = True
+    format_keys = data_format.keys()
+    # Check that the format was well specified
+    if len(format_keys) != len(filenames[0].split("_")):
+        raise ValueError("The format specified does not match that of the files")
 
-    if not is_multimode:
-        values_arrays = []
-        for index, name in enumerate(filenames):
-            values_array = [name] + name.split("_")
-            values_array[1] = values_array[1]
-            values_array[2] = values_array[2][2:]
-            values_array[3] = values_array[3][2:]
-            values_array[4] = values_array[4][1:-4]
-            values_arrays.append(values_array)
-        df = pd.DataFrame(
-            values_arrays,
-            columns=["name", "index", "syst_T", "DR_T", "B"],
-        )
-    else:
-        df = pd.DataFrame(
-            [[name] + name.split("_")[0:-1] for name in filenames],
-            columns=["name", "index", "f", "syst_T", "DR_T", "B"],
-        )
+    values_arrays = []
+    for name in filenames:
+        values_array = {}
+        line = name.split("_")
+        values_array['name'] = name
+        for i, key in enumerate(format_keys):
+            valid_range = data_format[key]
+            if valid_range[1] == -1:
+                values_array[key] = line[i][valid_range[0]:]
+            else:
+                values_array[key] = line[i][valid_range[0]:valid_range[1]]
+        values_arrays.append(values_array)
+    df = pd.DataFrame(values_arrays)        
+
+    print(df)
+    # if not is_multimode:
+    #     values_arrays = []
+    #     for index, name in enumerate(filenames):
+    #         values_array = [name] + name.split("_")
+    #         values_array[1] = values_array[1]
+    #         values_array[2] = values_array[2][2:]
+    #         values_array[3] = values_array[3][2:]
+    #         values_array[4] = values_array[4][1:-4]
+    #         values_arrays.append(values_array)
+    #     df = pd.DataFrame(
+    #         values_arrays,
+    #         columns=["name", "index", "syst_T", "DR_T", "B"],
+    #     )
+    # else:
+    #     df = pd.DataFrame(
+    #         [[name] + name.split("_")[0:-1] for name in filenames],
+    #         columns=["name", "index", "f", "syst_T", "DR_T", "B"],
+    #     )
+
     df["index"] = df["index"].astype(int)
     if is_multimode: df["f"] = df["f"].astype(int)
     df["syst_T"] = df["syst_T"].astype(np.float64)
     df["DR_T"] = df["DR_T"].astype(np.float64)
-    df["B"] = df["B"].astype(np.float64)
+    df["B"] = df["B"].astype(np.float64)    
     df.sort_values(inplace=True, by="index")
     df.set_index("index", inplace=True)
 
