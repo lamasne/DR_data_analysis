@@ -69,6 +69,8 @@ def make_plots(df_B_sweep, is_show_plots, is_save_plots, outputs_path):
     
     if is_show_plots:
         plt.show()
+    else:
+        plt.close('all')
 
 
 def run(inputs_path, outputs_path, DR_params_path, mode, T, is_multimode, is_show_fitting, is_save_fitting):
@@ -196,6 +198,8 @@ def lorentzian_fitting(sweep_df, Q_l_init, res_init, is_show_fitting, is_save_fi
 
     if is_show_fitting:
         plt.show()
+    else:
+        plt.close()
 
     Q_l_fit = result_fitting.params["Q_l"].value
     res_fit = result_fitting.params["res"].value
@@ -329,3 +333,10 @@ def get_B_sweep(inputs_path, is_multimode):
     df.set_index("index", inplace=True)
 
     return df
+
+def get_paths(inputs_root_path, outputs_root_path, T, mode):
+    inputs_path =  inputs_root_path + str(T) + "K/" + mode + '/'
+    outputs_path = outputs_root_path + str(T) + "K/" + mode + '/'
+    # Create output path if do not exist
+    os.makedirs(outputs_path, exist_ok=True)
+    return [inputs_path, outputs_path]
