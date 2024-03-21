@@ -25,52 +25,53 @@ def make_plots(df_B_sweep, is_show_plots, is_save_plots, outputs_path):
     df_B_sweep['R_S'] = 1e3*df_B_sweep['R_S']
     df_B_sweep['X_S'] = 1e3*df_B_sweep['X_S']
 
-    plt.figure()  
-    plt.xlabel('B (T)')
-    plt.plot(B_values[ramp_up],  df_B_sweep['res_fit'].values[ramp_up], 
-             B_values[ramp_down],  df_B_sweep['res_fit'].values[ramp_down],
-             )
-    plt.legend(['ramp-up', 'ramp-up'])
-    plt.ylabel('$f_{res}$ (GHz)')
-    if is_save_plots:
-        plt.savefig(os.path.join(outputs_path, "f(B).png"))
+    if is_show_plots or is_save_plots:
+        plt.figure()  
+        plt.xlabel('B (T)')
+        plt.plot(B_values[ramp_up],  df_B_sweep['res_fit'].values[ramp_up], 
+                B_values[ramp_down],  df_B_sweep['res_fit'].values[ramp_down],
+                )
+        plt.legend(['ramp-up', 'ramp-up'])
+        plt.ylabel('$f_{res}$ (GHz)')
+        if is_save_plots:
+            plt.savefig(os.path.join(outputs_path, "f(B).png"))
 
-    plt.figure()  
-    plt.xlabel('B (T)')
-    plt.plot(B_values[ramp_up],  df_B_sweep['Q_l_fit'].values[ramp_up], 
-             B_values[ramp_up],  df_B_sweep['Q_u_fit'].values[ramp_up],
-             B_values[ramp_down],  df_B_sweep['Q_l_fit'].values[ramp_down],
-             B_values[ramp_down],  df_B_sweep['Q_u_fit'].values[ramp_down]
-             )
-    plt.legend(['$Q_l$ ramp-up', '$Q_u$ ramp-up', '$Q_u$ ramp-down', '$Q_u$ ramp-down'])
-    plt.ylabel('Q')
-    if is_save_plots:
-        plt.savefig(os.path.join(outputs_path, "Q(B).png"))
+        plt.figure()  
+        plt.xlabel('B (T)')
+        plt.plot(B_values[ramp_up],  df_B_sweep['Q_l_fit'].values[ramp_up], 
+                B_values[ramp_up],  df_B_sweep['Q_u_fit'].values[ramp_up],
+                B_values[ramp_down],  df_B_sweep['Q_l_fit'].values[ramp_down],
+                B_values[ramp_down],  df_B_sweep['Q_u_fit'].values[ramp_down]
+                )
+        plt.legend(['$Q_l$ ramp-up', '$Q_u$ ramp-up', '$Q_l$ ramp-down', '$Q_u$ ramp-down'])
+        plt.ylabel('Q')
+        if is_save_plots:
+            plt.savefig(os.path.join(outputs_path, "Q(B).png"))
 
-    plt.figure()  
-    plt.xlabel('B (T)')
-    plt.plot(B_values[ramp_up], df_B_sweep['R_S'].values[ramp_up],
-             B_values[ramp_down], df_B_sweep['R_S'].values[ramp_down]
-             )
-    plt.legend(['ramp-up', 'ramp-down'])
-    plt.ylabel(r'$R_S$ ($m\Omega$)')
-    if is_save_plots:
-        plt.savefig(os.path.join(outputs_path, "R_s(B).png"))
+        plt.figure()  
+        plt.xlabel('B (T)')
+        plt.plot(B_values[ramp_up], df_B_sweep['R_S'].values[ramp_up],
+                B_values[ramp_down], df_B_sweep['R_S'].values[ramp_down]
+                )
+        plt.legend(['ramp-up', 'ramp-down'])
+        plt.ylabel(r'$R_S$ ($m\Omega$)')
+        if is_save_plots:
+            plt.savefig(os.path.join(outputs_path, "R_s(B).png"))
 
-    plt.figure()  
-    plt.xlabel('B (T)')
-    plt.plot(B_values[ramp_up], df_B_sweep['X_S'].values[ramp_up],
-             B_values[ramp_down], df_B_sweep['X_S'].values[ramp_down]
-             )
-    plt.legend(['ramp-up', 'ramp-down'])
-    plt.ylabel(r'$X_S$ ($m\Omega$)')
-    if is_save_plots:
-        plt.savefig(os.path.join(outputs_path, "X_s(B).png"))
-    
-    if is_show_plots:
-        plt.show()
-    else:
-        plt.close('all')
+        plt.figure()  
+        plt.xlabel('B (T)')
+        plt.plot(B_values[ramp_up], df_B_sweep['X_S'].values[ramp_up],
+                B_values[ramp_down], df_B_sweep['X_S'].values[ramp_down]
+                )
+        plt.legend(['ramp-up', 'ramp-down'])
+        plt.ylabel(r'$X_S$ ($m\Omega$)')
+        if is_save_plots:
+            plt.savefig(os.path.join(outputs_path, "X_s(B).png"))
+        
+        if is_show_plots:
+            plt.show()
+        else:
+            plt.close('all')
 
 
 def run(inputs_path, outputs_path, DR_params_path, mode, T, data_format, is_polar, is_multimode, is_show_fitting, is_save_fitting):
@@ -180,26 +181,27 @@ def lorentzian_fitting(sweep_df, Q_l_init, res_init, is_show_fitting, is_save_fi
     result_fitting = minimize(residual, params, args=(f, S21_lin), method="leastsq")
     
     ## Plot data points and the fitted curve
-    plt.figure()
-    plt.xlabel('f (Hz)')
-    # Logarithmic
-    plt.ylabel('S21 magnitude (log)')
-    plt.plot(f, (sweep_df["db:S21"]), "x-", linewidth=1.2, label="Data")
-    plt.plot(f, (20 * np.log10(abs(S21_formula(result_fitting.params, f)))), "m-", label="Fit")
-    # Linear
-    # plt.ylabel('S21 magnitude (lin)')
-    # plt.plot(f, abs(S21_lin), "x-", linewidth=1.2, label="Data")
-    # plt.plot(f, abs(S21_formula(result_fitting.params, f)), "m-", label="Fit")        
-    plt.legend(['S21 data', 'S21 fitting'])
+    if is_show_fitting or is_save_fitting:
+        plt.figure()
+        plt.xlabel('f (Hz)')
+        # Logarithmic
+        plt.ylabel('S21 magnitude (log)')
+        plt.plot(f, (sweep_df["db:S21"]), "x-", linewidth=1.2, label="Data")
+        plt.plot(f, (20 * np.log10(abs(S21_formula(result_fitting.params, f)))), "m-", label="Fit")
+        # Linear
+        # plt.ylabel('S21 magnitude (lin)')
+        # plt.plot(f, abs(S21_lin), "x-", linewidth=1.2, label="Data")
+        # plt.plot(f, abs(S21_formula(result_fitting.params, f)), "m-", label="Fit")        
+        plt.legend(['S21 data', 'S21 fitting'])
 
-    if is_save_fitting:
-        os.makedirs(outputs_path + 'S21/', exist_ok=True)
-        plt.savefig(os.path.join(outputs_path + 'S21/', f"S21_fitting_{idx:04d}.png"))
+        if is_save_fitting:
+            os.makedirs(outputs_path + 'S21/', exist_ok=True)
+            plt.savefig(os.path.join(outputs_path + 'S21/', f"S21_fitting_{idx:04d}.png"))
 
-    if is_show_fitting:
-        plt.show()
-    else:
-        plt.close()
+        if is_show_fitting:
+            plt.show()
+        else:
+            plt.close()
 
     Q_l_fit = result_fitting.params["Q_l"].value
     res_fit = result_fitting.params["res"].value
@@ -250,34 +252,28 @@ def DR_calculation(df):
     return [Q_l, Q_u, res, beta1, beta2]
 
 def format_data(df):
-    # convert to polar
-    params = []
+    real_part_cols=[]
     for col in df.columns:
-        res = re.search('^re:(.*)', col)
-        if res is not None:
-            params.append(res.group(1))
-    if len(params) == 0:
-        raise ValueError("The data is already in polar representation. Change the is_polar variable to True")
-            
-    nb_freq = len(df['freq[Hz]'])
-    df_new = pd.DataFrame({'freq[Hz]': df['freq[Hz]']})
-    for param in params: 
-        reals = df['re:' + param].values
-        imags = df['im:' + param].values
-        magnitude_lin = np.zeros(nb_freq)
-        magnitude_db = np.zeros(nb_freq)
-        argument_rad = np.zeros(nb_freq)
-        argument_deg = np.zeros(nb_freq)
+        if col.startswith("re:"):
+            real_part_cols.append(col)
+    if any(real_part_cols):
+        nb_freq = len(df['freq[Hz]'])
+        params = [re.search('^re:(.*)', col).group(1) for col in real_part_cols]
+        for param in params:
+            reals = df['re:' + param].values
+            imags = df['im:' + param].values
+            # Convert to polar representation
+            param_values = [cmath.polar(complex(reals[i], imags[i])) for i in range(nb_freq)]           
+            df = df.rename(columns={'re:' + param : 'db:' + param})
+            df['db:' + param] = [20 * math.log10(val[0]) for val in param_values]
+            df = df.rename(columns={'im:' + param : 'ang:' + param})
+            df['ang:' + param] = [math.degrees(val[1]) for val in param_values]
+    elif any(["db" in col for col in df.columns]):
+        print("The data is already in polar representation. Change the is_polar variable to True to gain time")
+    else:
+        raise ValueError("Problem with the column names of the data: no 're' nor 'db' found")
 
-        for i in range(nb_freq):
-            [magnitude_lin[i], argument_rad[i]] = cmath.polar(complex(reals[i], imags[i]))
-            magnitude_db[i] = 20 * math.log10(magnitude_lin[i])
-            argument_deg[i] = math.degrees(argument_rad[i])
-
-        df_new['db:' + param] = magnitude_db
-        df_new['ang:' + param] = argument_deg
-
-    return df_new
+    return df
 
 def get_f_sweep(filename):
     with open(filename, "r") as f:
@@ -340,11 +336,11 @@ def get_B_sweep(inputs_path, data_format, is_multimode):
     # else:
     #     df = pd.DataFrame(
     #         [[name] + name.split("_")[0:-1] for name in filenames],
-    #         columns=["name", "index", "f", "syst_T", "DR_T", "B"],
+    #         columns=["name", "index", "mode", "syst_T", "DR_T", "B"],
     #     )
 
     df["index"] = df["index"].astype(int)
-    if is_multimode: df["f"] = df["f"].astype(int)
+    if is_multimode: df["mode"] = df["mode"].astype(int)
     df["syst_T"] = df["syst_T"].astype(np.float64)
     df["DR_T"] = df["DR_T"].astype(np.float64)
     df["B"] = df["B"].astype(np.float64)    

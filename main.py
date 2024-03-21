@@ -3,36 +3,38 @@ from functions import *
 
 # Specific parameters
 sample_name = "AMC_23_01_01"
+# sample_name = "FF_23_12_01"
+# DR_type = "multi_mode_5mm_DR"
 DR_type = "single_mode_DR"
 is_polar = True
-data_format = {
+T_array = [50]
+is_show_plots = 1
+is_save_plots = 1
+is_show_fitting = 0
+is_save_fitting = 0
+
+# data_format = { # multimode
+#     "index": [0,-1], 
+#     "mode": [0,-1],
+#     "syst_T": [0,-1], 
+#     "DR_T": [0,-1], 
+#     "B": [0,-1],
+#     # "unknown": [0,-1],
+#     "extension": [0,-1],
+# }
+data_format = { # single mode 
     "index": [0,-1], 
-    "mode": [0,-1],
-    "syst_T": [0,-1], 
-    "DR_T": [0,-1], 
-    "B": [0,-1],
-    "unknown": [0,-1],
-    "extension": [0,-1],
+    "syst_T": [2,-1], 
+    "DR_T": [2,-1], 
+    "B": [1,-4], 
 }
 # data_format = {
 #     "index": [0,-1], 
-#     "syst_T": [2,-1], 
-#     "DR_T": [2,-1], 
-#     "B": [1,-4], 
-# }
-# data_format = {
-#     "index": [0,-1], 
-#     "f": [0,-1], 
+#     "mode": [0,-1], 
 #     "syst_T": [0,-1], 
 #     "DR_T": [0,-1], 
 #     "B": [0,-1],
 # }
-
-T_array = [50]
-is_show_plots = 1
-is_save_plots = 0
-is_show_fitting = 0
-is_save_fitting = 0
 
 # General parameters
 root_path = "data/" + DR_type + "/"
