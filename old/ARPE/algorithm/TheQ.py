@@ -20,6 +20,7 @@ from algorithm.final_betas import BetaFunction
 import algorithm.Dict as Dict
 import time
 import pandas as pd
+import traceback
 
 
 ##############################################################
@@ -51,7 +52,8 @@ def Q(basepath):
 
     Corrupt = []
 
-    o = 0
+    o = 0    
+    
     for entry in os.listdir(basepath):
         if entry.endswith(".s2p") or entry.endswith(".S2P"):
             o += 1
@@ -76,12 +78,9 @@ def Q(basepath):
 
         #for networkentry in NetworkList:
             df = ring_slot.to_dataframe()
+            # print(df)
             #DataFrameList.append(df)
-
-            print("All Data Loaded")
-            print("Number of elements " + str(len(ListofFiles)))
-
-
+            
         ###############################################################
         #### Determination of Resonant Frequency
         ###############################################################
@@ -138,8 +137,10 @@ def Q(basepath):
             prozent.append(Percantage)
             # print(ListofFiles)
             # print(len(freq),len(quali),len(beta1),len(beta2),len(quali0),len(prozent))
-        except:
-            print("ERROR!")
+        except Exception as e:
+            print("An error occurred:", e)
+            traceback.print_exc()
+            print("----------------------------")
             Corrupt.append(touchstone)
             continue
 

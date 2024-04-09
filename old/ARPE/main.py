@@ -7,7 +7,7 @@ The DR parameters are to be input manually around line 87
 
 
 from algorithm.TheQ import Q
-filelocation='inputs/'
+filelocation='old/ARPE/inputs/'
 ListofFiles, WCCFXList, PlotDataList, Q0, DataToSave , Corrupt = Q(filelocation)
 #print(Q0)
 
